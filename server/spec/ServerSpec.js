@@ -96,8 +96,8 @@ describe('Node Server Request Listener Function', function() {
     expect(res._responseCode).to.equal(200);
     var messages = JSON.parse(res._data).results;
     expect(messages.length).to.be.above(0);
-    expect(messages[0].username).to.equal('Jono');
-    expect(messages[0].message).to.equal('Do my bidding!');
+    expect(messages[messages.length - 1].username).to.equal('Jono');
+    expect(messages[messages.length - 1].message).to.equal('Do my bidding!');
     expect(res._ended).to.equal(true);
   });
 
@@ -123,8 +123,6 @@ describe('Node Server Request Listener Function', function() {
     expect(res._responseCode).to.equal(200);
     var messages = JSON.parse(res._data).results;
     expect(messages.length).to.be.above(0);
-    expect(messages[0].username).to.equal('Jono');
-    expect(messages[0].message).to.equal('Do my bidding!');
     expect(messages[0]).to.have.property('createdAt');
     expect(messages[0]).to.have.property('updatedAt');
     expect(res._ended).to.equal(true);
@@ -159,15 +157,55 @@ describe('Node Server Request Listener Function', function() {
 
     handler.requestHandler(req, res);
 
-    req = new stubs.request('/classes/messages', 'GET', {order: 'createdAt'});
+    req = new stubs.request('/classes/messages?order=objectId', 'GET');
     res = new stubs.response();
 
     handler.requestHandler(req, res);
 
     var messages = JSON.parse(res._data).results;
-    expect(messages[0].message).to.equal('first message');
+    expect(messages[messages.length - 3].message).to.equal('first message');
+    expect(messages[messages.length - 2].message).to.equal('second message');
+    expect(messages[messages.length - 1].message).to.equal('third message');
+    expect(res._ended).to.equal(true);
+  });
+
+  it('Should return reversed ordered list of messages', function() {
+    var stubMsg1 = {
+      username: 'Jono',
+      message: 'first message'
+    };
+    var stubMsg2 = {
+      username: 'Jono',
+      message: 'second message'
+    };
+    var stubMsg3 = {
+      username: 'Jono',
+      message: 'third message'
+    };
+    var req = new stubs.request('/classes/messages', 'POST', stubMsg1);
+    var res = new stubs.response();
+
+    handler.requestHandler(req, res);
+
+    req = new stubs.request('/classes/messages', 'POST', stubMsg2);
+    res = new stubs.response();
+
+    handler.requestHandler(req, res);
+
+    req = new stubs.request('/classes/messages', 'POST', stubMsg3);
+    res = new stubs.response();
+
+    handler.requestHandler(req, res);
+
+    req = new stubs.request('/classes/messages?order=-objectId', 'GET');
+    res = new stubs.response();
+
+    handler.requestHandler(req, res);
+
+    var messages = JSON.parse(res._data).results;
+    expect(messages[2].message).to.equal('first message');
     expect(messages[1].message).to.equal('second message');
-    expect(messages[2].message).to.equal('third message');
+    expect(messages[0].message).to.equal('third message');
     expect(res._ended).to.equal(true);
   });
 
