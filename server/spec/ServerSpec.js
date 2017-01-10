@@ -102,6 +102,77 @@ describe('Node Server Request Listener Function', function() {
   });
 
 
+  it('Should include createdAt and updatedAt properties in each message', function() {
+    var stubMsg = {
+      username: 'Jono',
+      message: 'Do my bidding!'
+    };
+    var req = new stubs.request('/classes/messages', 'POST', stubMsg);
+    var res = new stubs.response();
+
+    handler.requestHandler(req, res);
+
+    expect(res._responseCode).to.equal(201);
+
+      // Now if we request the log for that room the message we posted should be there:
+    req = new stubs.request('/classes/messages', 'GET');
+    res = new stubs.response();
+
+    handler.requestHandler(req, res);
+
+    expect(res._responseCode).to.equal(200);
+    var messages = JSON.parse(res._data).results;
+    expect(messages.length).to.be.above(0);
+    expect(messages[0].username).to.equal('Jono');
+    expect(messages[0].message).to.equal('Do my bidding!');
+    expect(messages[0]).to.have.property('createdAt');
+    expect(messages[0]).to.have.property('updatedAt');
+    expect(res._ended).to.equal(true);
+  });
+
+
+  it('Should return ordered list of messages', function() {
+    var stubMsg1 = {
+      username: 'Jono',
+      message: 'first message'
+    };
+    var stubMsg2 = {
+      username: 'Jono',
+      message: 'second message'
+    };
+    var stubMsg3 = {
+      username: 'Jono',
+      message: 'third message'
+    };
+    var req = new stubs.request('/classes/messages', 'POST', stubMsg1);
+    var res = new stubs.response();
+
+    handler.requestHandler(req, res);
+
+    req = new stubs.request('/classes/messages', 'POST', stubMsg2);
+    res = new stubs.response();
+
+    handler.requestHandler(req, res);
+
+    req = new stubs.request('/classes/messages', 'POST', stubMsg3);
+    res = new stubs.response();
+
+    handler.requestHandler(req, res);
+
+    req = new stubs.request('/classes/messages', 'GET', {order: 'createdAt'});
+    res = new stubs.response();
+
+    handler.requestHandler(req, res);
+
+    var messages = JSON.parse(res._data).results;
+    expect(messages[0].message).to.equal('first message');
+    expect(messages[1].message).to.equal('second message');
+    expect(messages[2].message).to.equal('third message');
+    expect(res._ended).to.equal(true);
+  });
+
+
+
   it('Should 404 when asked for a nonexistent file', function() {
     var req = new stubs.request('/arglebargle', 'GET');
     var res = new stubs.response();

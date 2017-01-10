@@ -12,6 +12,25 @@ this file and include it in basic-server.js so that it actually works.
 
 **************************************************************/
 
+// These headers will allow Cross-Origin Resource Sharing (CORS).
+// This code allows this server to talk to websites that
+// are on different domains, for instance, your chat client.
+//
+// Your chat client is running from a url like file://your/chat/client/index.html,
+// which is considered a different domain.
+//
+// Another way to get around this restriction is to serve you chat
+// client from this domain by setting up static file serving.
+var defaultCorsHeaders = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'access-control-allow-headers': 'content-type, accept',
+  'access-control-max-age': 10 // Seconds.
+};
+
+var messages = {results: []};
+var messageID = 1;
+
 var requestHandler = function(request, response) {
   // Request and Response come from node's http module.
   //
@@ -29,8 +48,36 @@ var requestHandler = function(request, response) {
   // console.logs in your code.
   console.log('Serving request type ' + request.method + ' for url ' + request.url);
 
-  // The outgoing status.
-  var statusCode = 200;
+  var statusCode;
+  var order;
+  if (!request.url.includes('/classes/messages')) {
+    statusCode = 404;
+  } else {
+    if (request.method === 'GET') {
+      console.log('inside the GET method if statement');
+      // The outgoing status.
+      statusCode = 200;
+      request.on('data', function(params) {
+        console.log('params: ', params);
+        // var paramObj = JSON.parse(params);
+
+        // order = paramObj.order;
+      });
+
+    } else {
+      statusCode = 201;
+      request.on('data', function (message) {
+        var msgObj = JSON.parse(message);
+        msgObj.createdAt = new Date();
+        msgObj.updatedAt = msgObj.createdAt;
+        msgObj.objectId = messageID;
+        messageID++;
+        messages.results.push(msgObj);
+      });
+    }
+  }
+
+  
 
   // See the note below about CORS headers.
   var headers = defaultCorsHeaders;
@@ -44,7 +91,36 @@ var requestHandler = function(request, response) {
   // .writeHead() writes to the request line and headers of the response,
   // which includes the status and all headers.
   response.writeHead(statusCode, headers);
+  var responseData = '';
+  if (statusCode === 200) {
+    if (order) {
+      messages.results.sort(function(a, b) {
+        if (order.substring(0, 1) === '-') {
+          order = order.substring(1);
+          if (a[order] < b[order]) {
+            return -1;
+          } else if (a[order] > b[order]) {
+            return 1;
+          } else {
+            return 0;
+          }
+        } else {
+          if (a[order] < b[order]) {
+            return 1;
+          } else if (a[order] > b[order]) {
+            return -1;
+          } else {
+            return 0;
+          }
 
+        }
+      });
+    }
+    responseData = JSON.stringify(messages);
+    //response.write(JSON.stringify(messages));
+  }
+  
+  
   // Make sure to always call response.end() - Node may not send
   // anything back to the client until you do. The string you pass to
   // response.end() will be the body of the response - i.e. what shows
@@ -52,22 +128,11 @@ var requestHandler = function(request, response) {
   //
   // Calling .end "flushes" the response's internal buffer, forcing
   // node to actually send all the data over to the client.
-  response.end('Hello, World!');
+  response.end(responseData);
 };
 
-// These headers will allow Cross-Origin Resource Sharing (CORS).
-// This code allows this server to talk to websites that
-// are on different domains, for instance, your chat client.
-//
-// Your chat client is running from a url like file://your/chat/client/index.html,
-// which is considered a different domain.
-//
-// Another way to get around this restriction is to serve you chat
-// client from this domain by setting up static file serving.
-var defaultCorsHeaders = {
-  'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'access-control-allow-headers': 'content-type, accept',
-  'access-control-max-age': 10 // Seconds.
-};
+module.exports = requestHandler;
+module.exports.requestHandler = requestHandler;
+
+
 
